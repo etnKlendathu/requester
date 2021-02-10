@@ -7,6 +7,11 @@
 #include <QNetworkCookie>
 #include <QNetworkDiskCache>
 
+Request::Request(HistoryModel& model):
+    m_model(model)
+{
+}
+
 void Request::run(const QString& url, const QString& req, const QString& method, const QString& body, const QString& user, const QString& password)
 {
     if (!m_manager) {
@@ -18,6 +23,8 @@ void Request::run(const QString& url, const QString& req, const QString& method,
             emit failure(url + req, method, "-1", "Cannot authenticate", "Cannot authenticate");
         }
     }
+
+    emit success("", "", 0, "");
 
     QNetworkRequest request(url+req);
 
@@ -35,6 +42,11 @@ void Request::run(const QString& url, const QString& req, const QString& method,
     if (method == "DELETE") {
         reply = m_manager->deleteResource(request);
     }
+    if (method == "PUT") {
+        reply = m_manager->put(request, body.toUtf8());
+    }
+
+    m_model.add(req, method, body);
 
     if (reply) {
         QEventLoop loop;
@@ -110,12 +122,20 @@ void Request::onFinished(QNetworkReply* reply)
             case QNetworkAccessManager::CustomOperation: return "CUSTOM";
             case QNetworkAccessManager::UnknownOperation: return "UNKNOWN";
         }
+        return "UNKNOWN";
     };
+    qInfo() << "Finished";
 
     QVariant status_code = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+    QString cnt = reply->readAll();
+    QJsonDocument doc = QJsonDocument::fromJson(cnt.toUtf8());
+    if (!doc.isEmpty()) {
+        cnt = doc.toJson(QJsonDocument::Indented);
+    }
+
     if (reply->error() == QNetworkReply::NoError) {
-        emit success(reply->url().toString(), readOp(reply->operation()), status_code.toString(), reply->readAll());
+        emit success(reply->url().toString(), readOp(reply->operation()), status_code.toString(), cnt);
     } else {
-        emit failure(reply->url().toString(), readOp(reply->operation()), status_code.toString(), reply->readAll(), reply->errorString());
+        emit failure(reply->url().toString(), readOp(reply->operation()), status_code.toString(), cnt, reply->errorString());
     }
 }

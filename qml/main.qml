@@ -1,5 +1,5 @@
 import QtQuick 2.12
-import QtQuick.Controls 2.12
+import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.12
 import Qt.labs.settings 1.0
 
@@ -83,135 +83,201 @@ ApplicationWindow {
             Item {
                 Layout.columnSpan: 3
                 width: 1 // dummy value != 0
-                height: 30
-            }
-
-            /// Method
-            Label {
-                text: "Method"
-            }
-
-            ComboBox {
-                id: method
-                Layout.fillWidth: true
-                editable: true
-                model: ListModel {
-                }
-                function insertCurrent() {
-                     if (find(editText) === -1) {
-                         model.append({text: editText})
-                         currentIndex = model.rowCount()-1;
-                         saveList();
-                     }
-                }
-                Component.onCompleted: {
-                    let lst = JSON.parse(settings.value("methods", "[]"))
-                    for(let i in lst) {
-                        model.append({text: lst[i]})
-                    }
-                    //currentIndex = lst.length - 1;
-                }
-                function saveList() {
-                    let lst = [];
-                    for(let i = 0; i < model.rowCount(); ++i) {
-                        lst.push(model.get(i).text);
-                    }
-                    settings.setValue("methods", JSON.stringify(lst));
-                }
-            }
-
-            ComboBox {
-                id: type
-                model: ["GET", "POST", "DELETE"]
-            }
-
-            /// Payload
-            Label {
-                text: "Payload"
-            }
-
-            ScrollView {
-                id: view
-                Layout.columnSpan: 2
-                Layout.fillWidth: true
-                implicitHeight: 100
-
-                TextArea {
-                    id: payload
-                    wrapMode: TextEdit.NoWrap
-                    tabStopDistance: metrics.advanceWidth(" ")*4
-                }
-
-                background: Rectangle {
-                    border.color: view.activeFocus ? "#21be2b" : "#bdbebf"
-                }
+                height: 10
             }
         }
 
-        Button {
-            text: "Send request"
-            Layout.alignment: Qt.AlignRight
-            onClicked: {
-                method.insertCurrent();
-                baseUrl.insertCurrent();
-                request.run(baseUrl.editText, method.editText, type.displayText, payload.text, userName.text, password.text);
-            }
-        }
-
-        GroupBox {
-            Layout.fillWidth: true
-            background: Rectangle {
-                color: "#dedede"
-                border.color: "#aeaeae"
-                radius: 2
-            }
-            GridLayout {
-                columns: 2
-                Label {
-                    text: "Request URL:"
-                }
-                Label {
-                    id: urlInfo
-                    Layout.fillWidth: true
-                }
-                Label {
-                    text: "Request Method:"
-                }
-                Label {
-                    id: methodInfo
-                    Layout.fillWidth: true
-                }
-                Label {
-                    text: "Response Status:"
-                }
-                Label {
-                    id: statusInfo
-                    Layout.fillWidth: true
-                }
-                Label {
-                    id: errorInfo
-                    Layout.fillWidth: true
-                    Layout.columnSpan: 2
-                    visible: false
-                    color: "red"
-                }
-            }
-        }
-
-        ScrollView {
-            id: respView
-            Layout.columnSpan: 2
-            Layout.fillWidth: true
+        SplitView {
+            width: parent.width
             Layout.fillHeight: true
+            Layout.fillWidth: true
 
-            TextArea {
-                id: response
-                wrapMode: TextEdit.NoWrap
-                tabStopDistance: metrics.advanceWidth(" ")*4
+            ColumnLayout {
+                SplitView.preferredWidth: 300
+                SplitView.fillHeight: true
+
+                RowLayout {
+                    Label {
+                        text: "History"
+                        Layout.fillWidth: true
+                    }
+                    Button {
+                        text: "Remove current"
+                        onClicked: {
+                            if (hist.currentItem) {
+                                hist.model.remove(hist.currentIndex);
+                            }
+                        }
+                    }
+                }
+                ListView {
+                    id: hist
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    model: history
+                    keyNavigationEnabled: true
+                    delegate:
+                        Rectangle {
+                            property string _endpoint: endpoint
+                            property string _method: method
+                            property string _payload: payload
+                            property int _num: num ? num : 0
+
+                            width: ListView.view.width
+                            height: childrenRect.height
+                            color: ListView.isCurrentItem ? "black" : "transparent"
+                            clip: true
+                            MouseArea {
+                                width: parent.width
+                                height: lab.height
+                                Label {
+                                    id: lab
+                                    text: (num > 0 ? "(" + num + ") " : "") + method+ " -> " + endpoint
+                                    padding: 3
+                                }
+                                onClicked: {
+                                    hist.currentIndex = index
+                                }
+                            }
+                        }
+                    ScrollBar.vertical: ScrollBar {}
+                    onCurrentItemChanged: {
+                        if (currentItem) {
+                            endpoint.text = currentItem._endpoint;
+                            type.currentIndex = type.find(currentItem._method);
+                            payload.text = currentItem._payload;
+                        }
+                    }
+                }
             }
 
-            background: Rectangle {
-                border.color: view.activeFocus ? "#21be2b" : "#bdbebf"
+            ColumnLayout {
+                width: parent.width
+                SplitView.fillHeight: true
+                SplitView.fillWidth: true
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Label {
+                        text: "Method:"
+                    }
+
+                    TextField {
+                        id: endpoint
+                        Layout.fillWidth: true
+                    }
+
+                    ComboBox {
+                        id: type
+                        model: ["GET", "POST", "DELETE", "PUT"]
+                    }
+
+                    Button {
+                        text: "Send request"
+                        onClicked: {
+                            request.run(baseUrl.editText, endpoint.text, type.displayText, payload.text, userName.text, password.text);
+                        }
+                    }
+
+                }
+
+                SplitView {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+
+                    ColumnLayout {
+                        SplitView.preferredWidth:300
+                        Label {
+                            Layout.fillWidth: true
+                            text: "Payload:"
+                        }
+
+                        ScrollView {
+                            id: view
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+
+                            TextArea {
+                                id: payload
+                                wrapMode: TextEdit.NoWrap
+                                tabStopDistance: metrics.advanceWidth(" ")*4
+                                selectByMouse: true
+                                selectByKeyboard: true
+                            }
+
+                            background: Rectangle {
+                                color: "transparent"
+                                border.color: payload.activeFocus ? "#21be2b" : "#bdbebf"
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            text: "Result:"
+                        }
+
+                        GroupBox {
+                            Layout.fillWidth: true
+                            background: Rectangle {
+                                color: "transparent"
+                                border.color: "#aeaeae"
+                                radius: 2
+                            }
+                            GridLayout {
+                                columns: 2
+                                Label {
+                                    text: "Request URL:"
+                                }
+                                Label {
+                                    id: urlInfo
+                                    Layout.fillWidth: true
+                                }
+                                Label {
+                                    text: "Request Method:"
+                                }
+                                Label {
+                                    id: methodInfo
+                                    Layout.fillWidth: true
+                                }
+                                Label {
+                                    text: "Response Status:"
+                                }
+                                Label {
+                                    id: statusInfo
+                                    Layout.fillWidth: true
+                                }
+                                Label {
+                                    id: errorInfo
+                                    Layout.fillWidth: true
+                                    Layout.columnSpan: 2
+                                    visible: false
+                                    color: "red"
+                                }
+                            }
+                        }
+
+
+                        ScrollView {
+                            id: respView
+                            Layout.columnSpan: 2
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+
+                            TextArea {
+                                id: response
+                                wrapMode: TextEdit.NoWrap
+                                tabStopDistance: metrics.advanceWidth(" ")*4
+                            }
+
+                            background: Rectangle {
+                                color: "transparent"
+                                border.color: response.activeFocus ? "#21be2b" : "#bdbebf"
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -241,9 +307,6 @@ ApplicationWindow {
         property alias width: window.width
         property alias height: window.height
         property alias userName: userName.text
-        property alias type: type.currentIndex
-        property alias method: method.currentIndex
         property alias url: baseUrl.currentIndex
-        property alias payload: payload.text
     }
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include <QString>
 #include <QObject>
+#include "history.h"
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -8,6 +9,8 @@ class QNetworkReply;
 class Request: public QObject
 {
     Q_OBJECT
+public:
+    Request(HistoryModel& model);
 public slots:
     void run(const QString& url, const QString& req, const QString& method, const QString& body, const QString& user, const QString& password);
 
@@ -22,5 +25,6 @@ private:
 private:
     QString m_auth;
     QNetworkAccessManager* m_manager = nullptr;
+    HistoryModel& m_model;
 };
 

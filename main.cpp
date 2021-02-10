@@ -6,6 +6,7 @@
 #include <QSslSocket>
 #include <QQmlContext>
 #include "request.h"
+#include "history.h"
 
 
 int main(int argc, char** argv)
@@ -22,9 +23,11 @@ int main(int argc, char** argv)
     QQuickStyle::setStyle("Fusion");
     QQuickWindow::setTextRenderType(QQuickWindow::NativeTextRendering);
 
-    Request req;
     QQmlApplicationEngine engine;
+    HistoryModel model;
+    Request req(model);
     engine.rootContext()->setContextProperty("request", &req);
+    engine.rootContext()->setContextProperty("history", &model);
     engine.addImportPath("qrc:/qml/");
     engine.load("qrc:/qml/main.qml");
 
